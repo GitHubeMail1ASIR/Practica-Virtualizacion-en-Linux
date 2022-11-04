@@ -13,6 +13,16 @@ echo -e "${bold}Si ha ejecutado el script de una forma errónea, pulse Ctrl+C pa
 sleep 2
 read -p "${bold}Presione enter si ha leído y entendido lo arriba explicado y desea continuar la ejecución.${normal}"
 
+# Primero comprobaré que el usuario actual está en el grupo libvirt, si no lo está, cancelaré la ejecución:
+if [[ $(groups | grep libvirt) ]]; then
+    echo -e "\n${bold}El usuario actual está en el grupo libvirt, continuando con la ejecución del script...${normal}"
+    sleep 2
+else
+    echo -e "\n${bold}El usuario actual no está en el grupo libvirt.${normal}"
+    echo -e "${bold}Por favor, añádalo al grupo libvirt y vuelva a ejecutar el script.${normal}"
+    return 1
+fi
+
 # Ahora me aseguraré de que existe el fichero ~/.ssh/id_ecdsa en el host, de lo contrario se cancelará la ejecución ya que no podremos conectarnos por ssh:
 if [ -f ~/.ssh/id_ecdsa ]; then
     echo -e "\n${bold}Existencia del fichero ~/.ssh/id_ecdsa comprobada, continuando con la ejecución del script...${normal}"
@@ -22,28 +32,26 @@ else
     return 1
 fi
 
-# Finalmente me aseguraré de que existe el fichero /var/lib/libvirt/images/bullseye-base.qcow2:
-if [ -f /var/lib/libvirt/images/bullseye-base.qcow2 ]; then
-    echo -e "\n${bold}Existencia del fichero /var/lib/libvirt/images/bullseye-base.qcow2 comprobada, continuando con la ejecución del script...${normal}"
+# Finalmente me aseguraré de que existe el fichero bullseye-base-sparse.qcow2 en la ruta actual:
+if [ -f bullseye-base-sparse.qcow2 ]; then
+    echo -e "\n${bold}Existencia del fichero bullseye-base-sparse.qcow2 en la ruta actual comprobada, continuando con la ejecución del script...${normal}"
     echo
     sleep 2
 else
-    echo -e "\n${bold}No existe el fichero /var/lib/libvirt/images/bullseye-base.qcow2. Cancelando la ejecución.${normal}";
+    echo -e "\n${bold}No existe el fichero bullseye-base-sparse.qcow2 en la ruta actual. Cancelando la ejecución.${normal}";
     return 1
 fi
 
-# Crear una imagen nueva, que utilice bullseye-base.qcow2 como imagen base y tenga 5 GiB de tamaño máximo. Esta imagen se denominará maquina1.qcow2:
-echo -e "${bold}Intentando obtener permisos de administrador para los comandos que lo necesitan...${normal}\n"
-
+# Crear una imagen nueva, que utilice bullseye-base-sparse.qcow2 como imagen base y tenga 5 GiB de tamaño máximo. Esta imagen se denominará maquina1.qcow2:
 sleep 2
 
-sudo qemu-img create -f qcow2 -b /var/lib/libvirt/images/bullseye-base.qcow2 /var/lib/libvirt/images/maquina1.qcow2 5G
+qemu-img create -f qcow2 -b bullseye-base-sparse.qcow2 maquina1.qcow2 5G
 
-sudo cp /var/lib/libvirt/images/maquina1.qcow2 /var/lib/libvirt/images/newmaquina1.qcow2
+cp maquina1.qcow2 newmaquina1.qcow2
 
-sudo virt-resize --expand /dev/sda1 /var/lib/libvirt/images/maquina1.qcow2 /var/lib/libvirt/images/newmaquina1.qcow2
+virt-resize --expand /dev/sda1 maquina1.qcow2 newmaquina1.qcow2
 
-sudo mv /var/lib/libvirt/images/newmaquina1.qcow2 /var/lib/libvirt/images/maquina1.qcow2
+mv newmaquina1.qcow2 maquina1.qcow2
 
 
 # Crea una red interna de nombre intra con salida al exterior mediante NAT que utilice el direccionamiento 10.10.20.0/24:
@@ -68,7 +76,7 @@ virsh -c qemu:///system net-autostart intra
 
 
 # Crea una máquina virtual (maquina1) conectada a la red intra, con 1 GiB de RAM, que utilice como disco raíz maquina1.qcow2 y que se inicie automáticamente. Arranca la máquina. Modifica el fichero /etc/hostname con maquina1:
-virt-install --connect qemu:///system --name maquina1 --ram 1024 --vcpus 1 --disk /var/lib/libvirt/images/maquina1.qcow2 --network network=intra --os-type linux --os-variant debian10 --import --noautoconsole
+virt-install --connect qemu:///system --name maquina1 --ram 1024 --vcpus 1 --disk maquina1.qcow2 --network network=intra --os-type linux --os-variant debian10 --import --noautoconsole
 
 
 # Autoiniciar la máquina:
@@ -93,7 +101,6 @@ ssh -i ~/.ssh/id_ecdsa debian@$IP "sudo -- bash -c 'echo "maquina1" > /etc/hostn
 
 # Crea un volumen adicional de 1 GiB de tamaño en formato RAW ubicado en el pool por defecto:
 virsh -c qemu:///system vol-create-as default maquina1-1G.raw 1G --format raw
-
 
 # Una vez iniciada la MV maquina1, conecta el volumen a la máquina, crea un sistema de ficheros XFS en el volumen y móntalo en el directorio /var/www/html. Ten cuidado con los propietarios y grupos que pongas, para que funcione adecuadamente el siguiente punto:
 virsh -c qemu:///system attach-disk maquina1 /var/lib/libvirt/images/maquina1-1G.raw vdb --targetbus virtio --persistent
@@ -150,7 +157,7 @@ ssh -i ~/.ssh/id_ecdsa debian@$IP "sudo -- bash -c 'echo "allow-hotplug enp8s0" 
 
 ssh -i ~/.ssh/id_ecdsa debian@$IP "sudo -- bash -c 'dhclient -r && dhclient'"
 
-sleep 8
+sleep 10
 
 echo -e "\n${bold}La IP de la nueva interfaz por br0 es: ${normal}"
 
