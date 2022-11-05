@@ -193,5 +193,19 @@ echo -e "\nCreando snapshot de la máquina virtual...\n"
 
 virsh -c qemu:///system snapshot-create-as maquina1 --name "snapshot1" --description "Snapshot de la máquina virtual" --disk-only --atomic
 
+# Preguntar al usuario si desea apagar la maquina1 antes de acabar la ejecución del script:
+read -p "${bold}¿Desea apagar la máquina virtual maquina1? (s/n): ${normal}" RESPUESTA
+
+while [ "$RESPUESTA" != "s" ] && [ "$RESPUESTA" != "n" ]; do
+    read -p "${bold}Respuesta incorrecta, por favor, introduzca s para apagar o n para mantener la VM encendida: ${normal}" RESPUESTA
+done
+
+if [ "$RESPUESTA" == "s" ]; then
+    virsh -c qemu:///system shutdown maquina1
+    echo -e "\n${bold}Orden de apagado enviada a la máquina virtual maquina1...${normal}"
+else
+    echo -e "\n${bold}La máquina virtual maquina1 seguirá encendida...${normal}"
+fi
+
 # Fin
 echo -e "\n${bold}Script finalizado.${normal}"
