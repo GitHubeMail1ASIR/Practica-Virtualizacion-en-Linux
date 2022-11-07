@@ -111,7 +111,7 @@ ssh -i ~/.ssh/id_ecdsa debian@$IP "sudo -- bash -c 'echo "/dev/vdb /var/www/html
 
 
 # Instala en maquina1 el servidor web apache2:
-ssh -i ~/.ssh/id_ecdsa debian@$IP "sudo -- bash -c 'apt update && apt install -y apache2 && sudo systemctl enable --now apache2'"
+ssh -i ~/.ssh/id_ecdsa debian@$IP "sudo -- bash -c 'apt update; apt install -y apache2 && systemctl enable --now apache2'"
 
 
 # Copia un fichero index.html a la máquina virtual:
@@ -135,7 +135,7 @@ echo
 
 
 # Instala LXC en la vm maquina1 y crea un linux container llamado container1:
-ssh -i ~/.ssh/id_ecdsa debian@$IP "sudo -- bash -c 'apt update && apt install -y lxc && lxc-create -t download -n container1 -- -d debian -r bullseye -a amd64'"
+ssh -i ~/.ssh/id_ecdsa debian@$IP "sudo -- bash -c 'apt update; apt install -y lxc && lxc-create -t download -n container1 -- -d debian -r bullseye -a amd64'"
 
 
 # Añade una nueva interfaz a la máquina virtual para conectarla a la red pública (al puente br0).
